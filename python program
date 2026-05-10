@@ -1,0 +1,69 @@
+import pandas as pd
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Load datasets
+movies = pd.read_csv('tmdb_5000_movies.csv')
+credits = pd.read_csv('tmdb_5000_credits.csv')
+
+# Merge datasets
+movies = movies.merge(credits, on='title')
+
+# Select important columns
+movies = movies[['movie_id', 'title', 'overview', 'genres', 'keywords', 'cast', 'crew']]
+
+# Check missing values
+movies.dropna(inplace=True)
+
+# Function to clean text
+
+def clean_text(text):
+    return str(text).replace(' ', '').lower()
+
+# Combine important features
+movies['tags'] = (
+    movies['overview'] + ' ' +
+    movies['genres'] + ' ' +
+    movies['keywords'] + ' ' +
+    movies['cast'] + ' ' +
+    movies['crew']
+)
+
+# Convert to lowercase
+movies['tags'] = movies['tags'].apply(clean_text)
+
+# TF-IDF Vectorization
+vectorizer = TfidfVectorizer(max_features=5000, stop_words='english')
+vector = vectorizer.fit_transform(movies['tags']).toarray()
+
+# Cosine similarity
+similarity = cosine_similarity(vector)
+
+# Recommendation function
+
+def recommend(movie):
+    movie = movie.lower()
+
+    # Find movie index
+    matching_movies = movies[movies['title'].str.lower() == movie]
+
+    if matching_movies.empty:
+        print("Movie not found in dataset.")
+        return
+
+    index = matching_movies.index[0]
+
+    distances = similarity[index]
+
+    # Sort movies based on similarity
+    movie_list = sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])[1:6]
+
+    print("\nRecommended Movies:\n")
+
+    for i in movie_list:
+        print(movies.iloc[i[0]].title)
+
+# User input
+movie_name = input("Enter your favorite movie: ")
+recommend(movie_name)
